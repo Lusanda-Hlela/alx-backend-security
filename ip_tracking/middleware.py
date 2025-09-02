@@ -15,7 +15,8 @@ def get_client_ip(request):
 
 class IPTrackingMiddleware:
     """
-    Middleware that logs the IP, timestamp and path to RequestLog.
+    Middleware that blocks requests from blacklisted IPs
+    and logs non-blocked requests to RequestLog.
     Fail-safe: does not raise on DB errors.
     """
 
@@ -27,12 +28,17 @@ class IPTrackingMiddleware:
         path = request.path
 
         try:
-            # lazy import to avoid app registry timing issues on startup
-            from .models import RequestLog
+            # Lazy import to avoid app registry timing issues
+            from .models import BlockedIP, RequestLog
 
+            # Check if the IP is blocked
+            if BlockedIP.objects.filter(ip_address=ip).exists():
+                return HttpResponseForbidden("Forbidden")
+
+            # Log request only if not blocked
             RequestLog.objects.create(ip_address=ip, path=path)
         except Exception:
-            logging.exception("ip_tracking: failed to save RequestLog")
+            logging.exception("ip_tracking: blocklist or log write failed")
 
         response = self.get_response(request)
         return response
