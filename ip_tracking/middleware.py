@@ -1,6 +1,7 @@
 # ip_tracking/middleware.py
 import logging
 from django.http import HttpResponseForbidden
+from django.core.cache import cache
 
 
 def get_client_ip(request):
@@ -15,8 +16,9 @@ def get_client_ip(request):
 
 class IPTrackingMiddleware:
     """
-    Middleware that blocks requests from blacklisted IPs
-    and logs non-blocked requests to RequestLog.
+    Middleware that:
+      - Blocks requests from blacklisted IPs.
+      - Logs non-blocked requests (IP, path, timestamp, country, city).
     Fail-safe: does not raise on DB errors.
     """
 
@@ -35,8 +37,25 @@ class IPTrackingMiddleware:
             if BlockedIP.objects.filter(ip_address=ip).exists():
                 return HttpResponseForbidden("Forbidden")
 
-            # Log request only if not blocked
-            RequestLog.objects.create(ip_address=ip, path=path)
+            # Try to get cached geolocation data
+            cache_key = f"geo:{ip}"
+            geo_data = cache.get(cache_key)
+
+            if geo_data is None:
+                # django-ip-geolocation populates request.geolocation
+                geo_data = getattr(request, "geolocation", {}) or {}
+                cache.set(cache_key, geo_data, 60 * 60 * 24)  # cache 24h
+
+            country = geo_data.get("country") or geo_data.get("country_name") or ""
+            city = geo_data.get("city") or ""
+
+            # Log the request
+            RequestLog.objects.create(
+                ip_address=ip,
+                path=path,
+                country=country,
+                city=city,
+            )
         except Exception:
             logging.exception("ip_tracking: blocklist or log write failed")
 

@@ -48,8 +48,17 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_ip_geolocation.middleware.IpGeolocationMiddleware',
     'ip_tracking.middleware.IPTrackingMiddleware',
 ]
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'ip-tracking-cache',
+    }
+}
+
 
 ROOT_URLCONF = 'iptrackproj.urls'
 
