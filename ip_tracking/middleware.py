@@ -17,8 +17,8 @@ def get_client_ip(request):
 class IPTrackingMiddleware:
     """
     Middleware that:
-      - Blocks requests from blacklisted IPs.
-      - Logs non-blocked requests (IP, path, timestamp, country, city).
+        - Blocks requests from blacklisted IPs.
+        - Logs non-blocked requests (IP, path, timestamp, country, city).
     Fail-safe: does not raise on DB errors.
     """
 
@@ -58,6 +58,15 @@ class IPTrackingMiddleware:
             )
         except Exception:
             logging.exception("ip_tracking: blocklist or log write failed")
+
+        # Count requests per IP
+        count_key = f"{ip}:count"
+        cache.incr(count_key, 1, ignore_key_check=True)
+        cache.expire(count_key, 3600)  # reset hourly
+
+        # Track last path
+        path_key = f"{ip}:path"
+        cache.set(path_key, path, 3600)
 
         response = self.get_response(request)
         return response
