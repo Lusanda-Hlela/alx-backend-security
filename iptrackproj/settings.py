@@ -55,7 +55,7 @@ MIDDLEWARE = [
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'ip-tracking-cache',
+        'LOCATION': 'unique-ip-tracking-cache',
     }
 }
 
